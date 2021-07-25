@@ -6,7 +6,12 @@ type googleBooksResponse struct {
 		VolumeInfo struct {
 			Title           string   `json:"title,omitempty"`
 			Authors         []string `json:"authors,omitempty"`
+			Categories      []string `json:"categories,omitempty"`
+			Publisher       string   `json:"publisher,omitempty"`
+			Language        string   `json:"language,omitempty"`
 			PublicationYear string   `json:"publishedDate,omitempty"`
+			PageCount       int64    `json:"pageCount"`
+			Description     string   `json:"description,omitempty"`
 			AverageRating   float64  `json:"averageRating,omitempty"`
 			Identifier      []struct {
 				Type       string `json:"type,omitempty"`
@@ -51,6 +56,7 @@ type openLibraryresponse struct {
 		Name string `json:"name,omitempty"`
 	} `json:"authors,omitempty"`
 	PublishedYear string `json:"publish_date,omitempty"`
+	PageCount     int64  `json:"number_of_pages"`
 	Publishers    []struct {
 		Name string `json:"name,omitempty"`
 	} `json:"publishers,omitempty"`
@@ -62,23 +68,26 @@ type openLibraryresponse struct {
 }
 
 type Book struct {
-	Title               string     `json:"title"`
-	PublishedYear       string     `json:"published_year"`
-	Authors             []string   `json:"authors"`
-	Description         string     `json:"description"`
-	IndustryIdentifiers identifier `json:"industry_identifiers"`
-	PageCount           int64      `json:"page_count"`
-	// PrintType           string     `json:"print_type"`
-	Categories []string `json:"categories"`
-	ImageLinks string   `json:"image_links"`
-	// PreviewLink string   `json:"preview_link"`
-	// InfoLink    string   `json:"info_link"`
-	Publisher string `json:"publisher"`
-	Language  string `json:"language"`
-	Source    string `json:"source"`
+	Title               string      `json:"title"`
+	PublishedYear       string      `json:"published_year"`
+	Authors             []string    `json:"authors"`
+	Description         string      `json:"description"`
+	IndustryIdentifiers *Identifier `json:"industry_identifiers"`
+	PageCount           int64       `json:"page_count"`
+	Categories          []string    `json:"categories"`
+	ImageLinks          *ImageLinks `json:"image_links"`
+	Publisher           string      `json:"publisher"`
+	Language            string      `json:"language"`
+	Source              string      `json:"source"`
 }
 
-type identifier struct {
+type Identifier struct {
 	ISBN   string `json:"isbn"`
 	ISBN13 string `json:"isbn_13"`
+}
+
+type ImageLinks struct {
+	SmallImageURL string `json:"small_image_url"`
+	ImageURL      string `json:"image_url"`
+	LargeImageURL string `json:"large_image_url"`
 }
