@@ -16,6 +16,5 @@ const (
 	PROVIDER_GOOGLE      = "google"
 	PROVIDER_OPENLIBRARY = "openlibrary"
 	PROVIDER_GOODREADS   = "goodreads"
-	PROVIDER_WORLDCAT    = "worldcat"
 	PROVIDER_ISBNDB      = "isbndb"
 )

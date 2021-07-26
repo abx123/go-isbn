@@ -19,23 +19,23 @@ var DEFAULT_PROVIDERS = []string{
 	PROVIDER_ISBNDB,
 }
 
-var PROVIDER_RESOLVERS = map[string]func(string) *Book{
+var PROVIDER_RESOLVERS = map[string]func(string, chan *Book){
 	PROVIDER_GOOGLE:      resolveGoogle,
 	PROVIDER_OPENLIBRARY: resolveOpenLibrary,
 	PROVIDER_GOODREADS:   resolveGoodreads,
 	PROVIDER_ISBNDB:      resolveISBNDB,
 }
 
-func resolveGoogle(isbn string) *Book {
+func resolveGoogle(isbn string, ch chan *Book){
 	url := fmt.Sprintf("%s%s%s", GOOGLE_BOOKS_API_BASE, GOOGLE_BOOKS_API_BOOK, url.Values{"q": {isbn}}.Encode())
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil
+		ch <- nil
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil
+		ch <- nil
 	}
 
 	val := &googleBooksResponse{}
@@ -44,7 +44,7 @@ func resolveGoogle(isbn string) *Book {
 	err = decoder.Decode(val)
 
 	if err != nil || val.TotalItems == 0 {
-		return nil
+		ch <- nil
 	}
 
 	isbn10, isbn13 := "", ""
@@ -57,7 +57,7 @@ func resolveGoogle(isbn string) *Book {
 		}
 	}
 	if isbn != isbn10 && isbn != isbn13 {
-		return nil
+		ch <- nil
 	}
 	b := val.Items[0].VolumeInfo
 	book := &Book{
@@ -80,30 +80,30 @@ func resolveGoogle(isbn string) *Book {
 		Source:        PROVIDER_GOOGLE,
 	}
 
-	return book
+	ch <- book
 }
 
-func resolveOpenLibrary(isbn string) *Book {
+func resolveOpenLibrary(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", OPENLIBRARY_API_BASE, OPENLIBRARY_API_BOOK, url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}.Encode())
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil
+		ch <- nil
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil
+		ch <- nil
 	}
 
 	key := fmt.Sprintf("ISBN:%s", isbn)
 	var data map[string]openLibraryresponse
 	err = json.Unmarshal([]byte(string(body)), &data)
 	if err != nil {
-		return nil
+		ch <- nil
 	}
 	if _, ok := data[key]; !ok {
-		return nil
+		ch <- nil
 	}
 	authors := []string{}
 	for _, v := range data[key].Authors {
@@ -118,7 +118,7 @@ func resolveOpenLibrary(isbn string) *Book {
 		isbn13 = data[key].Identifiers.ISBN13[0]
 	}
 	if isbn10 != isbn && isbn13 != isbn {
-		return nil
+		ch <- nil
 	}
 	identifiers := &Identifier{
 		ISBN:   isbn10,
@@ -145,29 +145,29 @@ func resolveOpenLibrary(isbn string) *Book {
 		Source: PROVIDER_OPENLIBRARY,
 	}
 
-	return book
+	ch <- book
 
 }
 
-func resolveGoodreads(isbn string) *Book {
+func resolveGoodreads(isbn string, ch chan *Book) {
 	envGoodread := os.Getenv("GOODREAD_APIKEY")
 	url := fmt.Sprintf("%s%s%s", GOODREADS_API_BASE, GOODREADS_API_BOOK, url.Values{"q": {isbn}, "key": {envGoodread}}.Encode())
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil
+		ch <- nil
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil
+		ch <- nil
 	}
 	xmlReader := bytes.NewReader([]byte(string(body)))
 	xmlBook := new(goodreadsResponse)
 	if err := xml.NewDecoder(xmlReader).Decode(xmlBook); err != nil {
-		return nil
+		ch <- nil
 	}
 	if xmlBook.Search.Results.Work.Book.Title == "" {
-		return nil
+		ch <- nil
 	}
 	b := xmlBook.Search.Results.Work.Book
 
@@ -198,30 +198,37 @@ func resolveGoodreads(isbn string) *Book {
 		Source: PROVIDER_GOODREADS,
 	}
 
-	return book
+	ch <- book
 }
 
-func resolveISBNDB(isbn string) *Book {
+func resolveISBNDB(isbn string, ch chan *Book) {
 	fmt.Println("resolveISBNDB isbn:", isbn)
-	return &Book{}
+	ch <- &Book{}
 }
 
-func GetBookInfo(isbn string, providers []string) ([]*Book, error) {
+func GetBookInfo(isbn string, providers []string) (*Book, error) {
 	if !Validate(isbn) {
 		return nil, errInvalidISBN
 	}
-	books := []*Book{}
+	book := &Book{}
 	resolvedProviders := resolveProviders(providers)
-	for _, v := range resolvedProviders {
-		book := PROVIDER_RESOLVERS[v](isbn)
-		if book != nil {
-			books = append(books, book)
+	ch := make(chan *Book, len(resolvedProviders))
+	respCount := 0
+	for _, v := range resolvedProviders{
+		go PROVIDER_RESOLVERS[v](isbn, ch)
+	}
+
+	for book.Title == ""{
+		if respCount == len(resolvedProviders){
+			return nil, errBookNotFound
+		}
+		tempBook := <- ch
+		respCount++
+		if tempBook != nil{
+			book = tempBook
 		}
 	}
-	if len(books) == 0 {
-		return nil, errBookNotFound
-	}
-	return books, nil
+	return book, nil
 }
 
 func resolveProviders(providers []string) []string {
