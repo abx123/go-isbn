@@ -117,7 +117,7 @@ func resolveOpenLibrary(isbn string, ch chan *Book) {
 	if len(data[key].Identifiers.ISBN13) > 0 {
 		isbn13 = data[key].Identifiers.ISBN13[0]
 	}
-	if isbn10 != isbn && isbn13 != isbn {
+	if isbn10 != isbn || isbn13 != isbn {
 		ch <- nil
 	}
 	identifiers := &Identifier{
