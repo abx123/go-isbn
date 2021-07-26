@@ -32,10 +32,12 @@ func resolveGoogle(isbn string, ch chan *Book){
 	resp, err := http.Get(url)
 	if err != nil {
 		ch <- nil
+		return
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		ch <- nil
+		return
 	}
 
 	val := &googleBooksResponse{}
@@ -45,6 +47,7 @@ func resolveGoogle(isbn string, ch chan *Book){
 
 	if err != nil || val.TotalItems == 0 {
 		ch <- nil
+		return
 	}
 
 	isbn10, isbn13 := "", ""
@@ -58,6 +61,7 @@ func resolveGoogle(isbn string, ch chan *Book){
 	}
 	if isbn != isbn10 && isbn != isbn13 {
 		ch <- nil
+		return
 	}
 	b := val.Items[0].VolumeInfo
 	book := &Book{
@@ -89,11 +93,13 @@ func resolveOpenLibrary(isbn string, ch chan *Book) {
 	resp, err := http.Get(url)
 	if err != nil {
 		ch <- nil
+		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		ch <- nil
+		return
 	}
 
 	key := fmt.Sprintf("ISBN:%s", isbn)
@@ -101,9 +107,11 @@ func resolveOpenLibrary(isbn string, ch chan *Book) {
 	err = json.Unmarshal([]byte(string(body)), &data)
 	if err != nil {
 		ch <- nil
+		return
 	}
 	if _, ok := data[key]; !ok {
 		ch <- nil
+		return
 	}
 	authors := []string{}
 	for _, v := range data[key].Authors {
@@ -119,6 +127,7 @@ func resolveOpenLibrary(isbn string, ch chan *Book) {
 	}
 	if isbn10 != isbn || isbn13 != isbn {
 		ch <- nil
+		return
 	}
 	identifiers := &Identifier{
 		ISBN:   isbn10,
@@ -156,18 +165,22 @@ func resolveGoodreads(isbn string, ch chan *Book) {
 	resp, err := http.Get(url)
 	if err != nil {
 		ch <- nil
+		return
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		ch <- nil
+		return
 	}
 	xmlReader := bytes.NewReader([]byte(string(body)))
 	xmlBook := new(goodreadsResponse)
 	if err := xml.NewDecoder(xmlReader).Decode(xmlBook); err != nil {
 		ch <- nil
+		return
 	}
 	if xmlBook.Search.Results.Work.Book.Title == "" {
 		ch <- nil
+		return
 	}
 	b := xmlBook.Search.Results.Work.Book
 
