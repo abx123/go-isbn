@@ -67,6 +67,19 @@ type openLibraryresponse struct {
 	} `json:"cover,omitempty"`
 }
 
+type isbndbResponse struct {
+	Book struct {
+		Publisher     string   `json:"publisher"`
+		Language      string   `json:"language"`
+		Image         string   `json:"image"`
+		Title         string   `json:"title_long"`
+		PublishedDate string   `json:"date_published"`
+		Authors       []string `json:"authors"`
+		ISBN          string   `json:"isbn"`
+		ISBN13        string   `json:"isbn13"`
+	} `json:"book"`
+}
+
 type Book struct {
 	Title               string      `json:"title"`
 	PublishedYear       string      `json:"published_year"`

@@ -30,7 +30,7 @@ func resolveGoogle(isbn string, ch chan *Book){
 	url := fmt.Sprintf("%s%s%s", GOOGLE_BOOKS_API_BASE, GOOGLE_BOOKS_API_BOOK, url.Values{"q": {isbn}}.Encode())
 
 	resp, err := http.Get(url)
-	if err != nil {
+	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299){
 		ch <- nil
 		return
 	}
@@ -91,7 +91,7 @@ func resolveOpenLibrary(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", OPENLIBRARY_API_BASE, OPENLIBRARY_API_BOOK, url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}.Encode())
 
 	resp, err := http.Get(url)
-	if err != nil {
+	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299){
 		ch <- nil
 		return
 	}
@@ -136,7 +136,7 @@ func resolveOpenLibrary(isbn string, ch chan *Book) {
 	for _, v := range data[key].Publishers {
 		publishers = append(publishers, v.Name)
 	}
-	book := &Book{
+	ch <- &Book{
 		Title:         data[key].Title,
 		PublishedYear: data[key].PublishedYear,
 		Authors:       authors,
@@ -154,16 +154,18 @@ func resolveOpenLibrary(isbn string, ch chan *Book) {
 		Source: PROVIDER_OPENLIBRARY,
 	}
 
-	ch <- book
-
 }
 
 func resolveGoodreads(isbn string, ch chan *Book) {
 	envGoodread := os.Getenv("GOODREAD_APIKEY")
+	if envGoodread == ""{
+		ch <- nil
+		return
+	}
 	url := fmt.Sprintf("%s%s%s", GOODREADS_API_BASE, GOODREADS_API_BOOK, url.Values{"q": {isbn}, "key": {envGoodread}}.Encode())
 
 	resp, err := http.Get(url)
-	if err != nil {
+	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299){
 		ch <- nil
 		return
 	}
@@ -192,7 +194,7 @@ func resolveGoodreads(isbn string, ch chan *Book) {
 		identifiers.ISBN13 = isbn
 	}
 
-	book := &Book{
+	ch <- &Book{
 		Title:         b.Title,
 		PublishedYear: fmt.Sprintf("%d", xmlBook.Search.Results.Work.PublicationYear),
 		Authors: []string{
@@ -211,12 +213,61 @@ func resolveGoodreads(isbn string, ch chan *Book) {
 		Source: PROVIDER_GOODREADS,
 	}
 
-	ch <- book
+	// ch <- book
 }
 
 func resolveISBNDB(isbn string, ch chan *Book) {
-	fmt.Println("resolveISBNDB isbn:", isbn)
-	ch <- &Book{}
+	envISBNDB := os.Getenv("ISBNDB_APIKEY")
+	if envISBNDB == ""{
+		ch <- nil
+		return
+	}
+	url := fmt.Sprintf("%s%s%s", GOODREADS_API_BASE, GOODREADS_API_BOOK, isbn)
+	
+	client := http.Client{}
+	req , err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		ch <- nil
+		return
+	}
+	req.Header.Add("Authorization", envISBNDB)
+	resp , err := client.Do(req)
+	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299){
+		ch <- nil
+		return
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		ch <- nil
+		return
+	}
+	val := &isbndbResponse{}
+	r := bytes.NewReader([]byte(string(body)))
+	decoder := json.NewDecoder(r)
+	err = decoder.Decode(val)
+	if err != nil || (val.Book.ISBN != isbn && val.Book.ISBN13 != isbn){
+		ch <- nil
+		return
+	}
+
+	ch <- &Book{
+		Title: val.Book.Title,
+		PublishedYear: val.Book.PublishedDate,
+		Authors: val.Book.Authors,
+		// Description: ,
+		IndustryIdentifiers: &Identifier{
+			ISBN: val.Book.ISBN,
+			ISBN13: val.Book.ISBN13,
+		},
+		// PageCount: ,
+		// Categories: ,
+		ImageLinks: &ImageLinks{
+			SmallImageURL: val.Book.Image,
+		},
+		Publisher: val.Book.Publisher,
+		Language: val.Book.Language,
+		Source: PROVIDER_ISBNDB,
+	}
 }
 
 func GetBookInfo(isbn string, providers []string) (*Book, error) {

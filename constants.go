@@ -8,7 +8,7 @@ const (
 	OPENLIBRARY_API_BOOK = "/api/books?"
 
 	ISBNDB_API_BASE = "https://api2.isbndb.com"
-	ISBNDB_API_BOOK = "/book"
+	ISBNDB_API_BOOK = "/book/"
 
 	GOODREADS_API_BASE = "https://www.goodreads.com"
 	GOODREADS_API_BOOK = "/search/index.xml?"
