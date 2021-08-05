@@ -33,7 +33,10 @@ type GoISBN struct {
 }
 
 func NewGoISBN(providers []string) *GoISBN {
-	gi := GoISBN{}
+	gi := &GoISBN{
+		goodreadAPIKey: os.Getenv("GOODREAD_APIKEY"),
+		isbndbAPIKey:   os.Getenv("ISBNDB_APIKEY"),
+	}
 	return &GoISBN{
 		providers:      providers,
 		goodreadAPIKey: os.Getenv("GOODREAD_APIKEY"),
@@ -47,7 +50,7 @@ func NewGoISBN(providers []string) *GoISBN {
 	}
 }
 
-func (gi GoISBN) Get(isbn string) (*Book, error) {
+func (gi *GoISBN) Get(isbn string) (*Book, error) {
 
 	if !gi.ValidateISBN(isbn) {
 		return nil, errInvalidISBN
@@ -74,7 +77,7 @@ func (gi GoISBN) Get(isbn string) (*Book, error) {
 	return book, nil
 }
 
-func (gi GoISBN) ValidateISBN(isbn string) bool {
+func (gi *GoISBN) ValidateISBN(isbn string) bool {
 	isbn = strings.ReplaceAll(strings.ReplaceAll(isbn, " ", ""), "-", "")
 	switch len(isbn) {
 	case 10:
@@ -85,7 +88,7 @@ func (gi GoISBN) ValidateISBN(isbn string) bool {
 	return false
 }
 
-func (gi GoISBN) resolveGoogle(isbn string, ch chan *Book) {
+func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", googleBooks_Api_Base, googleBooks_Api_Book, url.Values{"q": {isbn}}.Encode())
 
 	resp, err := http.Get(url)
@@ -146,7 +149,7 @@ func (gi GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 	ch <- book
 }
 
-func (gi GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
+func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", OpenLibrary_Api_Base, OpenLibrary_Api_Book, url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}.Encode())
 
 	resp, err := http.Get(url)
@@ -184,7 +187,7 @@ func (gi GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 	if len(data[key].Identifiers.ISBN13) > 0 {
 		isbn13 = data[key].Identifiers.ISBN13[0]
 	}
-	if isbn10 != isbn || isbn13 != isbn {
+	if isbn10 != isbn && isbn13 != isbn {
 		ch <- nil
 		return
 	}
@@ -215,7 +218,7 @@ func (gi GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 
 }
 
-func (gi GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
+func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", goodreads_Api_Base, goodreads_Api_Book, url.Values{"q": {isbn}, "key": {gi.goodreadAPIKey}}.Encode())
 
 	resp, err := http.Get(url)
@@ -268,7 +271,7 @@ func (gi GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 	}
 }
 
-func (gi GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
+func (gi *GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", isbndb_Api_Base, isbndb_Api_Book, isbn)
 
 	client := http.Client{}
@@ -317,7 +320,7 @@ func (gi GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
 	}
 }
 
-func (gi GoISBN) resolveProviders() []string {
+func (gi *GoISBN) resolveProviders() []string {
 	if len(gi.providers) == 0 {
 		return DEFAULT_PROVIDERS
 	}
