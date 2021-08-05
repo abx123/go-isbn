@@ -2,21 +2,9 @@ package goisbn
 
 import (
 	"strconv"
-	"strings"
 )
 
-func Validate(isbn string) bool {
-	isbn = strings.ReplaceAll(strings.ReplaceAll(isbn, " ", ""), "-", "")
-	switch len(isbn) {
-	case 10:
-		return Validate10(isbn)
-	case 13:
-		return Validate13(isbn)
-	}
-	return false
-}
-
-func Validate10(isbn10 string) bool {
+func validate10(isbn10 string) bool {
 	if len(isbn10) == 10 {
 		s := sum10(isbn10)
 		return s%11 == 0
@@ -24,7 +12,7 @@ func Validate10(isbn10 string) bool {
 	return false
 }
 
-func Validate13(isbn13 string) bool {
+func validate13(isbn13 string) bool {
 	if len(isbn13) == 13 {
 		s := sum13(isbn13)
 		return s%10 == 0

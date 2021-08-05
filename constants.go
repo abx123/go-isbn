@@ -1,20 +1,20 @@
 package goisbn
 
 const (
-	GOOGLE_BOOKS_API_BASE = "https://www.googleapis.com"
-	GOOGLE_BOOKS_API_BOOK = "/books/v1/volumes?"
+	googleBooks_Api_Base = "https://www.googleapis.com"
+	googleBooks_Api_Book = "/books/v1/volumes?"
 
-	OPENLIBRARY_API_BASE = "https://openlibrary.org"
-	OPENLIBRARY_API_BOOK = "/api/books?"
+	OpenLibrary_Api_Base = "https://openlibrary.org"
+	OpenLibrary_Api_Book = "/api/books?"
 
-	ISBNDB_API_BASE = "https://api2.isbndb.com"
-	ISBNDB_API_BOOK = "/book/"
+	isbndb_Api_Base = "https://api2.isbndb.com"
+	isbndb_Api_Book = "/book/"
 
-	GOODREADS_API_BASE = "https://www.goodreads.com"
-	GOODREADS_API_BOOK = "/search/index.xml?"
+	goodreads_Api_Base = "https://www.goodreads.com"
+	goodreads_Api_Book = "/search/index.xml?"
 
-	PROVIDER_GOOGLE      = "google"
-	PROVIDER_OPENLIBRARY = "openlibrary"
-	PROVIDER_GOODREADS   = "goodreads"
-	PROVIDER_ISBNDB      = "isbndb"
+	provider_Google      = "google"
+	provider_OpenLibrary = "openlibrary"
+	provider_Goodreads   = "goodreads"
+	Provider_Isbndb      = "isbndb"
 )
