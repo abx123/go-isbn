@@ -18,13 +18,13 @@ const (
 	goodreadsAPIKey  = "GOODREAD_APIKEY"
 
 	// ProviderGoogle is the constant representation for Google Books
-	ProviderGoogle      = "google"
+	ProviderGoogle = "google"
 	// ProviderOpenLibrary is the constant representation for Open Library
 	ProviderOpenLibrary = "openlibrary"
 	// ProviderGoodreads is the constant representation for Goodreads
-	ProviderGoodreads   = "goodreads"
+	ProviderGoodreads = "goodreads"
 	// ProviderIsbndb is the constant representation for ISBNDB
-	ProviderIsbndb      = "isbndb"
+	ProviderIsbndb = "isbndb"
 
 	timeout = 3 * time.Second
 
