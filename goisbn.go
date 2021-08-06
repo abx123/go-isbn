@@ -17,10 +17,10 @@ import (
 // DEFAULT_PROVIDERS contains all available providers, ie: Google Books, Open
 // Library, Goodreads, & ISBNDB
 var DEFAULT_PROVIDERS = []string{
-	Provider_Google,
-	Provider_OpenLibrary,
-	Provider_Goodreads,
-	provider_Isbndb,
+	ProviderGoogle,
+	ProviderOpenLibrary,
+	ProviderGoodreads,
+	ProviderIsbndb,
 }
 
 // GoISBN contains the providers and their respective resolver function with API
@@ -39,10 +39,10 @@ func NewGoISBN(providers []string) *GoISBN {
 		isbndbAPIKey:   os.Getenv(isbndbAPIKey),
 	}
 	gi.resolvers = map[string]func(string, chan *Book){
-		Provider_Google:      (gi.resolveGoogle),
-		Provider_OpenLibrary: (gi.resolveOpenLibrary),
-		Provider_Goodreads:   (gi.resolveGoodreads),
-		provider_Isbndb:      (gi.resolveISBNDB),
+		ProviderGoogle:      (gi.resolveGoogle),
+		ProviderOpenLibrary: (gi.resolveOpenLibrary),
+		ProviderGoodreads:   (gi.resolveGoodreads),
+		ProviderIsbndb:      (gi.resolveISBNDB),
 	}
 	gi.providers = gi.resolveProviders()
 	return gi
@@ -169,7 +169,7 @@ func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 		Categories:    b.Categories,
 		Publisher:     b.Publisher,
 		Language:      b.Language,
-		Source:        Provider_Google,
+		Source:        ProviderGoogle,
 	}
 
 	ch <- book
@@ -256,7 +256,7 @@ func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 		},
 		Publisher: strings.Join(publishers, ", "),
 		// Language: ,
-		Source: Provider_OpenLibrary,
+		Source: ProviderOpenLibrary,
 	}
 
 }
@@ -326,7 +326,7 @@ func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 		},
 		// Publisher: ,
 		// Language: ,
-		Source: Provider_Goodreads,
+		Source: ProviderGoodreads,
 	}
 }
 
@@ -389,7 +389,7 @@ func (gi *GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
 		},
 		Publisher: val.Book.Publisher,
 		Language:  val.Book.Language,
-		Source:    provider_Isbndb,
+		Source:    ProviderIsbndb,
 	}
 }
 
@@ -406,11 +406,11 @@ func (gi *GoISBN) resolveProviders() []string {
 	// check if provider is valid
 	for k := range uniqueProviders {
 		if _, ok := gi.resolvers[k]; ok {
-			if k == Provider_Goodreads && gi.goodreadAPIKey == "" {
+			if k == ProviderGoodreads && gi.goodreadAPIKey == "" {
 				log.Info("Goodreads API Key not set, removing Goodreads from provider list")
 				continue
 			}
-			if k == provider_Isbndb && gi.isbndbAPIKey == "" {
+			if k == ProviderIsbndb && gi.isbndbAPIKey == "" {
 				log.Info("ISBNDB API Key not set, removing Isbndb from provider list")
 				continue
 			}

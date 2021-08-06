@@ -17,10 +17,10 @@ const (
 	goodreadsAPIBook = "/search/index.xml?"
 	goodreadsAPIKey  = "GOODREAD_APIKEY"
 
-	Provider_Google      = "google"
-	Provider_OpenLibrary = "openlibrary"
-	Provider_Goodreads   = "goodreads"
-	provider_Isbndb      = "isbndb"
+	ProviderGoogle      = "google"
+	ProviderOpenLibrary = "openlibrary"
+	ProviderGoodreads   = "goodreads"
+	ProviderIsbndb      = "isbndb"
 
 	timeout = 3 * time.Second
 

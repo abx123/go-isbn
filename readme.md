@@ -66,8 +66,8 @@ import (
 func main() {
   // go-isbn instance
   gi := goisbn.NewGoISBN([]string{
-    goisbn.Provider_Google,
-    goisbn.Provider_Goodreads,
+    goisbn.ProviderGoogle,
+    goisbn.ProviderGoodreads,
   })
 
   // Get book details
