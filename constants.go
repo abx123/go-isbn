@@ -17,9 +17,13 @@ const (
 	goodreadsAPIBook = "/search/index.xml?"
 	goodreadsAPIKey  = "GOODREAD_APIKEY"
 
+	// ProviderGoogle is the constant representation for Google Books
 	ProviderGoogle      = "google"
+	// ProviderOpenLibrary is the constant representation for Open Library
 	ProviderOpenLibrary = "openlibrary"
+	// ProviderGoodreads is the constant representation for Goodreads
 	ProviderGoodreads   = "goodreads"
+	// ProviderIsbndb is the constant representation for ISBNDB
 	ProviderIsbndb      = "isbndb"
 
 	timeout = 3 * time.Second
