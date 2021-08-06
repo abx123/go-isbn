@@ -80,6 +80,7 @@ type isbndbResponse struct {
 	} `json:"book"`
 }
 
+// Book contains all the data retreived from providers
 type Book struct {
 	Title               string      `json:"title"`
 	PublishedYear       string      `json:"published_year"`
@@ -94,11 +95,13 @@ type Book struct {
 	Source              string      `json:"source"`
 }
 
+// Identifier contains the ISBN 10 and ISBN 13 data
 type Identifier struct {
 	ISBN   string `json:"isbn"`
 	ISBN13 string `json:"isbn_13"`
 }
 
+// ImageLinks contains all the image links related to the book
 type ImageLinks struct {
 	SmallImageURL string `json:"small_image_url"`
 	ImageURL      string `json:"image_url"`

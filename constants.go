@@ -1,11 +1,13 @@
 package goisbn
 
+import "time"
+
 const (
 	googleBooks_Api_Base = "https://www.googleapis.com"
 	googleBooks_Api_Book = "/books/v1/volumes?"
 
-	OpenLibrary_Api_Base = "https://openlibrary.org"
-	OpenLibrary_Api_Book = "/api/books?"
+	openLibrary_Api_Base = "https://openlibrary.org"
+	openLibrary_Api_Book = "/api/books?"
 
 	isbndb_Api_Base = "https://api2.isbndb.com"
 	isbndb_Api_Book = "/book/"
@@ -16,5 +18,11 @@ const (
 	provider_Google      = "google"
 	provider_OpenLibrary = "openlibrary"
 	provider_Goodreads   = "goodreads"
-	Provider_Isbndb      = "isbndb"
+	provider_Isbndb      = "isbndb"
+
+	timeout = 3 * time.Second
+
+	get = "GET"
+
+	authorizationHeaderKey = "Authorization"
 )
