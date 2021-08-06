@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 var DEFAULT_PROVIDERS = []string{
@@ -37,17 +38,14 @@ func NewGoISBN(providers []string) *GoISBN {
 		goodreadAPIKey: os.Getenv("GOODREAD_APIKEY"),
 		isbndbAPIKey:   os.Getenv("ISBNDB_APIKEY"),
 	}
-	return &GoISBN{
-		providers:      providers,
-		goodreadAPIKey: os.Getenv("GOODREAD_APIKEY"),
-		isbndbAPIKey:   os.Getenv("ISBNDB_APIKEY"),
-		resolvers: map[string]func(string, chan *Book){
-			provider_Google:      (gi.resolveGoogle),
-			provider_OpenLibrary: (gi.resolveOpenLibrary),
-			provider_Goodreads:   (gi.resolveGoodreads),
-			Provider_Isbndb:      (gi.resolveISBNDB),
-		},
+	gi.resolvers = map[string]func(string, chan *Book){
+		provider_Google:      (gi.resolveGoogle),
+		provider_OpenLibrary: (gi.resolveOpenLibrary),
+		provider_Goodreads:   (gi.resolveGoodreads),
+		Provider_Isbndb:      (gi.resolveISBNDB),
 	}
+	gi.providers = gi.resolveProviders()
+	return gi
 }
 
 func (gi *GoISBN) Get(isbn string) (*Book, error) {
@@ -91,7 +89,13 @@ func (gi *GoISBN) ValidateISBN(isbn string) bool {
 func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", googleBooks_Api_Base, googleBooks_Api_Book, url.Values{"q": {isbn}}.Encode())
 
-	resp, err := http.Get(url)
+	client := http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		ch <- nil
+		return
+	}
+	resp, err := client.Do(req)
 	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299) {
 		ch <- nil
 		return
@@ -152,7 +156,13 @@ func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", OpenLibrary_Api_Base, OpenLibrary_Api_Book, url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}.Encode())
 
-	resp, err := http.Get(url)
+	client := http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		ch <- nil
+		return
+	}
+	resp, err := client.Do(req)
 	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299) {
 		ch <- nil
 		return
@@ -221,7 +231,13 @@ func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", goodreads_Api_Base, goodreads_Api_Book, url.Values{"q": {isbn}, "key": {gi.goodreadAPIKey}}.Encode())
 
-	resp, err := http.Get(url)
+	client := http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		ch <- nil
+		return
+	}
+	resp, err := client.Do(req)
 	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299) {
 		ch <- nil
 		return
@@ -274,7 +290,7 @@ func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 func (gi *GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", isbndb_Api_Base, isbndb_Api_Book, isbn)
 
-	client := http.Client{}
+	client := http.Client{Timeout: 3 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		ch <- nil
