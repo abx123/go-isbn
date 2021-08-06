@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var DEFAULT_PROVIDERS = []string{
@@ -51,6 +53,7 @@ func NewGoISBN(providers []string) *GoISBN {
 func (gi *GoISBN) Get(isbn string) (*Book, error) {
 
 	if !gi.ValidateISBN(isbn) {
+		log.Info("isbn %s provided is not valid", isbn)
 		return nil, errInvalidISBN
 	}
 
@@ -64,6 +67,7 @@ func (gi *GoISBN) Get(isbn string) (*Book, error) {
 
 	for book.Title == "" {
 		if respCount == len(resolvedProviders) {
+			log.Info("book with isbn %s not found from %s", isbn, strings.Join(resolvedProviders, ", "))
 			return nil, errBookNotFound
 		}
 		tempBook := <-ch
@@ -92,16 +96,25 @@ func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 	client := http.Client{Timeout: 3 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Warn("Error generating request for Google Books API: %s", err)
 		ch <- nil
 		return
 	}
 	resp, err := client.Do(req)
-	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299) {
+	if err != nil {
+		log.Warn("Error retrieving book details from Google Books API: %s", err)
 		ch <- nil
 		return
 	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Warn("Google Books API returns non 200 status. Status: %s", resp.Status)
+		ch <- nil
+		return
+
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Warn("Error reading book details from Google Books API: %s", err)
 		ch <- nil
 		return
 	}
@@ -111,7 +124,14 @@ func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 	decoder := json.NewDecoder(r)
 	err = decoder.Decode(val)
 
-	if err != nil || val.TotalItems == 0 {
+	if err != nil {
+		log.Warn("Error decoding response from Google Books API: %s", err)
+		ch <- nil
+		return
+	}
+
+	if val.TotalItems == 0 {
+		log.Warn("Google Books API returns 0 item")
 		ch <- nil
 		return
 	}
@@ -126,6 +146,7 @@ func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 		}
 	}
 	if isbn != isbn10 && isbn != isbn13 {
+		log.Warn("Google Books API returns incorrect item, isbn10: %s, isbn13:%s", isbn10, isbn13)
 		ch <- nil
 		return
 	}
@@ -159,17 +180,25 @@ func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 	client := http.Client{Timeout: 3 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Warn("Error generating request for Open Library API: %s", err)
 		ch <- nil
 		return
 	}
 	resp, err := client.Do(req)
-	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299) {
+	if err != nil {
+		log.Warn("Error retrieving book details from Open Library API: %s", err)
+		ch <- nil
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Warn("Open Library API returns non 200 status. Status: %s", err)
 		ch <- nil
 		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Warn("Error reading book details from Open Library API: %s", err)
 		ch <- nil
 		return
 	}
@@ -178,11 +207,13 @@ func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 	var data map[string]openLibraryresponse
 	err = json.Unmarshal([]byte(string(body)), &data)
 	if err != nil {
+		log.Warn("Error unmarshaling response from Open Library API: %s", err)
 		ch <- nil
 		return
 	}
 	if _, ok := data[key]; !ok {
 		ch <- nil
+		log.Warn("Open Library API returns incorrect item: %s", err)
 		return
 	}
 	authors := []string{}
@@ -198,6 +229,7 @@ func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 		isbn13 = data[key].Identifiers.ISBN13[0]
 	}
 	if isbn10 != isbn && isbn13 != isbn {
+		log.Warn("Open Library API returns incorrect item, isbn10: %s, isbn13:%s", isbn10, isbn13)
 		ch <- nil
 		return
 	}
@@ -234,26 +266,36 @@ func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 	client := http.Client{Timeout: 3 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Warn("Error generating request for Goodreads API: %s", err)
 		ch <- nil
 		return
 	}
 	resp, err := client.Do(req)
-	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299) {
+	if err != nil {
+		log.Warn("Error retrieving book details from Goodreads API: %s", err)
+		ch <- nil
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Warn("Goodreads API returns non 200 status. Status: %s", resp.Status)
 		ch <- nil
 		return
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Warn("Error reading book details from Goodreads API: %s", err)
 		ch <- nil
 		return
 	}
 	xmlReader := bytes.NewReader([]byte(string(body)))
 	xmlBook := new(goodreadsResponse)
 	if err := xml.NewDecoder(xmlReader).Decode(xmlBook); err != nil {
+		log.Warn("Error decoding response from Goodreads API: %s", err)
 		ch <- nil
 		return
 	}
 	if xmlBook.Search.Results.Work.Book.Title == "" {
+		log.Warn("Goodreads API returns 0 item")
 		ch <- nil
 		return
 	}
@@ -293,17 +335,25 @@ func (gi *GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
 	client := http.Client{Timeout: 3 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Warn("Error generating request for ISBNDB API: %s", err)
 		ch <- nil
 		return
 	}
 	req.Header.Add("Authorization", gi.isbndbAPIKey)
 	resp, err := client.Do(req)
-	if err != nil || (resp.StatusCode < 200 || resp.StatusCode > 299) {
+	if err != nil {
+		log.Warn("Error retrieving book details from ISBNDB API: %s", err)
+		ch <- nil
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Warn("ISBNDB API returns non 200 status. Status: %s", resp.Status)
 		ch <- nil
 		return
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Warn("Error reading book details from ISBNDB API: %s", err)
 		ch <- nil
 		return
 	}
@@ -311,7 +361,13 @@ func (gi *GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
 	r := bytes.NewReader([]byte(string(body)))
 	decoder := json.NewDecoder(r)
 	err = decoder.Decode(val)
-	if err != nil || (val.Book.ISBN != isbn && val.Book.ISBN13 != isbn) {
+	if err != nil {
+		log.Warn("Error decoding response from ISBNDB API: %s", err)
+		ch <- nil
+		return
+	}
+	if val.Book.ISBN != isbn && val.Book.ISBN13 != isbn {
+		log.Warn("ISBNDB API returns incorrect item, isbn10: %s, isbn13:%s", val.Book.ISBN, val.Book.ISBN13)
 		ch <- nil
 		return
 	}
@@ -349,7 +405,12 @@ func (gi *GoISBN) resolveProviders() []string {
 	// check if provider is valid
 	for k := range uniqueProviders {
 		if _, ok := gi.resolvers[k]; ok {
-			if (k == provider_Goodreads && gi.goodreadAPIKey == "") || (k == Provider_Isbndb && gi.isbndbAPIKey == "") {
+			if k == provider_Goodreads && gi.goodreadAPIKey == "" {
+				log.Info("Goodreads API Key not set, removing Goodreads from provider list")
+				continue
+			}
+			if k == Provider_Isbndb && gi.isbndbAPIKey == "" {
+				log.Info("ISBNDB API Key not set, removing Isbndb from provider list")
 				continue
 			}
 			res = append(res, k)
