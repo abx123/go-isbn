@@ -127,8 +127,8 @@ func TestValidateISBN(t *testing.T) {
 
 func TestResolveGoogle(t *testing.T) {
 	type testCase struct {
-		name string
-		desc string
+		name     string
+		desc     string
 		jsonResp string
 		expRes   *Book
 		err      error
@@ -241,8 +241,8 @@ func TestResolveGoogle(t *testing.T) {
 			respCode: 200,
 		},
 		{
-			name: "Sad Case",
-			desc: "return non 2xx response code",
+			name:     "Sad Case",
+			desc:     "return non 2xx response code",
 			respCode: 999,
 		},
 		{
@@ -429,7 +429,7 @@ func TestResolveGoogle(t *testing.T) {
 		{
 			name: "Sad Case",
 			desc: "client returns error",
-			err: fmt.Errorf("mock error"),
+			err:  fmt.Errorf("mock error"),
 		},
 	}
 
@@ -1518,16 +1518,16 @@ func TestGet(t *testing.T) {
 			apiRespCode: 200,
 		},
 		{
-			name: "Sad Case",
-			desc: "providers return error",
-			isbn: "9781101973394",
+			name:   "Sad Case",
+			desc:   "providers return error",
+			isbn:   "9781101973394",
 			expRes: nil,
 			expErr: errBookNotFound,
 		},
 		{
-			name: "Sad Case",
-			desc: "invalid isbn error",
-			isbn: "9781101973x94",
+			name:   "Sad Case",
+			desc:   "invalid isbn error",
+			isbn:   "9781101973x94",
 			expRes: nil,
 			expErr: errInvalidISBN,
 		},
