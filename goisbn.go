@@ -20,6 +20,12 @@ var DEFAULT_PROVIDERS = []string{
 	ProviderIsbndb,
 }
 
+// Queryer is the main interface for GoISBN
+type Queryer interface {
+	Get(string) (*Book, error)
+	ValidateISBN(string) bool
+}
+
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
