@@ -7,14 +7,14 @@
 
 ## Feature Overview
 
-- Retrieves book details using ISBN10 / ISBN13 via multiple providers:
+- Retrieves book details using ISBN10 / ISBN13 from 4 providers:
   - Google Books
   - Open Library
   - Goodreads _(requires env var GOODREAD_APIKEY to be set) [free](https://www.goodreads.com/api)_
   - ISBNDB _(requires env var ISBNDB_APIKEY to be set) [7-day trial](https://isbndb.com/isbn-database)_
 - Validates if a string is in valid ISBN10 / ISBN13 format
 
-go-isbn will spawn equal number of go routines each querying a single provider with a max timeout of 3 seconds. First valid result will then be returned. Will return book not found only if all providers fail.
+go-isbn will spawn equal number of go routines each querying a single provider with a max timeout of 3 seconds. First valid result will then be returned. Will return book not found only if all providers fail. Will default to all available providers if none is specified
 
 ## Guide
 
@@ -50,7 +50,7 @@ func main() {
   fmt.Println(book)
 ```
 
-Querying on all selected providers:
+Querying on selected providers:
 
 ```go
 package main
