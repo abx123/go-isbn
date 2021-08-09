@@ -114,7 +114,7 @@ func unsetEnv() (restore func()) {
 		goodreadsAPIKey: os.Getenv(goodreadsAPIKey),
 		isbndbAPIKey:    os.Getenv(isbndbAPIKey),
 	}
-	for k, _ := range before {
+	for k := range before {
 		os.Unsetenv(k)
 	}
 	return func() {
