@@ -4,7 +4,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/abx123/go-isbn?style=flat-square)](https://goreportcard.com/report/github.com/abx123/go-isbn)
 [![Codecov](https://img.shields.io/codecov/c/github/abx123/go-isbn.svg?style=flat-square)](https://codecov.io/gh/labx123/go-isbn)
 [![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/abx123/go-isbn/master/LICENSE)
-[![Sourcegraph](https://sourcegraph.com/github.com/labx123/go-isbn/-/badge.svg?style=flat-square)](https://sourcegraph.com/github.com/abx123/go-isbn?badge)
+
+<!-- [![Sourcegraph](https://sourcegraph.com/github.com/labx123/go-isbn/-/badge.svg?style=flat-square)](https://sourcegraph.com/github.com/abx123/go-isbn?badge) -->
 
 ## Feature Overview
 
