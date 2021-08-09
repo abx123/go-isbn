@@ -1,11 +1,9 @@
 package goisbn
 
 import (
-	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -22,6 +20,10 @@ var DEFAULT_PROVIDERS = []string{
 	ProviderIsbndb,
 }
 
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 // GoISBN contains the providers and their respective resolver function with API
 // Key for Goodreads and ISBNDB provider
 type GoISBN struct {
@@ -29,6 +31,7 @@ type GoISBN struct {
 	goodreadAPIKey string
 	isbndbAPIKey   string
 	resolvers      map[string]func(string, chan *Book)
+	client         httpClient
 }
 
 // NewGoISBN generates a new instance of GoISBN
@@ -37,6 +40,7 @@ func NewGoISBN(providers []string) *GoISBN {
 		goodreadAPIKey: os.Getenv(goodreadsAPIKey),
 		isbndbAPIKey:   os.Getenv(isbndbAPIKey),
 		providers:      providers,
+		client:         &http.Client{Timeout: timeout},
 	}
 	gi.resolvers = map[string]func(string, chan *Book){
 		ProviderGoogle:      (gi.resolveGoogle),
@@ -58,16 +62,15 @@ func (gi *GoISBN) Get(isbn string) (*Book, error) {
 	}
 
 	book := &Book{}
-	resolvedProviders := gi.resolveProviders()
-	ch := make(chan *Book, len(resolvedProviders))
+	ch := make(chan *Book, len(gi.providers))
 	respCount := 0
-	for _, v := range resolvedProviders {
+	for _, v := range gi.providers {
 		go gi.resolvers[v](isbn, ch)
 	}
 
 	for book.Title == "" {
-		if respCount == len(resolvedProviders) {
-			log.Printf("book with isbn %s not found from %s\n", isbn, strings.Join(resolvedProviders, ", "))
+		if respCount == len(gi.providers) {
+			log.Printf("book with isbn %s not found from %s\n", isbn, strings.Join(gi.providers, ", "))
 			return nil, errBookNotFound
 		}
 		tempBook := <-ch
@@ -94,37 +97,22 @@ func (gi *GoISBN) ValidateISBN(isbn string) bool {
 func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", googleBooksAPIBase, googleBooksAPIBook, url.Values{"q": {isbn}}.Encode())
 
-	client := http.Client{Timeout: timeout}
-	req, err := http.NewRequest(get, url, nil)
-	if err != nil {
-		log.Printf("Error generating request for Google Books API: %s\n", err)
-		ch <- nil
-		return
-	}
-	resp, err := client.Do(req)
+	req, _ := http.NewRequest(get, url, nil)
+	resp, err := gi.client.Do(req)
 	if err != nil {
 		log.Printf("Error retrieving book details from Google Books API: %s\n", err)
 		ch <- nil
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		log.Printf("Google Books API returns non 200 status. Status: %s\n", resp.Status)
 		ch <- nil
 		return
 
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading book details from Google Books API: %s\n", err)
-		ch <- nil
-		return
-	}
-
 	val := &googleBooksResponse{}
-	r := bytes.NewReader([]byte(string(body)))
-	decoder := json.NewDecoder(r)
-	err = decoder.Decode(val)
-
+	err = json.NewDecoder(resp.Body).Decode(&val)
 	if err != nil {
 		log.Printf("Error decoding response from Google Books API: %s\n", err)
 		ch <- nil
@@ -154,7 +142,7 @@ func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 	b := val.Items[0].VolumeInfo
 	book := &Book{
 		IndustryIdentifiers: &Identifier{
-			ISBN:   isbn,
+			ISBN:   isbn10,
 			ISBN13: isbn13,
 		},
 		Title:   b.Title,
@@ -178,35 +166,22 @@ func (gi *GoISBN) resolveGoogle(isbn string, ch chan *Book) {
 func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", openLibraryAPIBase, openLibraryAPIBook, url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}.Encode())
 
-	client := http.Client{Timeout: timeout}
-	req, err := http.NewRequest(get, url, nil)
-	if err != nil {
-		log.Printf("Error generating request for Open Library API: %s\n", err)
-		ch <- nil
-		return
-	}
-	resp, err := client.Do(req)
+	req, _ := http.NewRequest(get, url, nil)
+	resp, err := gi.client.Do(req)
 	if err != nil {
 		log.Printf("Error retrieving book details from Open Library API: %s\n", err)
 		ch <- nil
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		log.Printf("Open Library API returns non 200 status. Status: %s\n", err)
 		ch <- nil
 		return
 	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading book details from Open Library API: %s\n", err)
-		ch <- nil
-		return
-	}
-
 	key := fmt.Sprintf("ISBN:%s", isbn)
-	var data map[string]openLibraryresponse
-	err = json.Unmarshal([]byte(string(body)), &data)
+	data := map[string]openLibraryresponse{}
+	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
 		log.Printf("Error unmarshaling response from Open Library API: %s\n", err)
 		ch <- nil
@@ -228,11 +203,6 @@ func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 	}
 	if len(data[key].Identifiers.ISBN13) > 0 {
 		isbn13 = data[key].Identifiers.ISBN13[0]
-	}
-	if isbn10 != isbn && isbn13 != isbn {
-		log.Printf("Open Library API returns incorrect item, isbn10: %s, isbn13:%s\n", isbn10, isbn13)
-		ch <- nil
-		return
 	}
 	identifiers := &Identifier{
 		ISBN:   isbn10,
@@ -264,43 +234,31 @@ func (gi *GoISBN) resolveOpenLibrary(isbn string, ch chan *Book) {
 func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", goodreadsAPIBase, goodreadsAPIBook, url.Values{"q": {isbn}, "key": {gi.goodreadAPIKey}}.Encode())
 
-	client := http.Client{Timeout: timeout}
-	req, err := http.NewRequest(get, url, nil)
-	if err != nil {
-		log.Printf("Error generating request for Goodreads API: %s\n", err)
-		ch <- nil
-		return
-	}
-	resp, err := client.Do(req)
+	req, _ := http.NewRequest(get, url, nil)
+	resp, err := gi.client.Do(req)
 	if err != nil {
 		log.Printf("Error retrieving book details from Goodreads API: %s\n", err)
 		ch <- nil
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		log.Printf("Goodreads API returns non 200 status. Status: %s\n", resp.Status)
 		ch <- nil
 		return
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading book details from Goodreads API: %s\n", err)
-		ch <- nil
-		return
-	}
-	xmlReader := bytes.NewReader([]byte(string(body)))
-	xmlBook := new(goodreadsResponse)
-	if err := xml.NewDecoder(xmlReader).Decode(xmlBook); err != nil {
+	val := &goodreadsResponse{}
+	if err := xml.NewDecoder(resp.Body).Decode(val); err != nil {
 		log.Printf("Error decoding response from Goodreads API: %s\n", err)
 		ch <- nil
 		return
 	}
-	if xmlBook.Search.Results.Work.Book.Title == "" {
+	if val.Search.Results.Work.Book.Title == "" {
 		log.Printf("Goodreads API returns 0 item\n")
 		ch <- nil
 		return
 	}
-	b := xmlBook.Search.Results.Work.Book
+	b := val.Search.Results.Work.Book
 
 	identifiers := &Identifier{}
 	if validate10(isbn) {
@@ -312,7 +270,7 @@ func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 
 	ch <- &Book{
 		Title:         b.Title,
-		PublishedYear: fmt.Sprintf("%d", xmlBook.Search.Results.Work.PublicationYear),
+		PublishedYear: fmt.Sprintf("%d", val.Search.Results.Work.PublicationYear),
 		Authors: []string{
 			b.Author.Name,
 		},
@@ -333,35 +291,22 @@ func (gi *GoISBN) resolveGoodreads(isbn string, ch chan *Book) {
 func (gi *GoISBN) resolveISBNDB(isbn string, ch chan *Book) {
 	url := fmt.Sprintf("%s%s%s", isbndbAPIBase, isbndbAPIBook, isbn)
 
-	client := http.Client{Timeout: timeout}
-	req, err := http.NewRequest(get, url, nil)
-	if err != nil {
-		log.Printf("Error generating request for ISBNDB API: %s\n", err)
-		ch <- nil
-		return
-	}
+	req, _ := http.NewRequest(get, url, nil)
 	req.Header.Add(authorizationHeaderKey, gi.isbndbAPIKey)
-	resp, err := client.Do(req)
+	resp, err := gi.client.Do(req)
 	if err != nil {
 		log.Printf("Error retrieving book details from ISBNDB API: %s\n", err)
 		ch <- nil
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		log.Printf("ISBNDB API returns non 200 status. Status: %s\n", resp.Status)
 		ch <- nil
 		return
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading book details from ISBNDB API: %s\n", err)
-		ch <- nil
-		return
-	}
 	val := &isbndbResponse{}
-	r := bytes.NewReader([]byte(string(body)))
-	decoder := json.NewDecoder(r)
-	err = decoder.Decode(val)
+	err = json.NewDecoder(resp.Body).Decode(&val)
 	if err != nil {
 		log.Printf("Error decoding response from ISBNDB API: %s\n", err)
 		ch <- nil
